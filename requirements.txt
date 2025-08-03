@@ -12,3 +12,6 @@ ruff==0.4.3
 openai==1.30.0  # optional, used only if OPENAI_API_KEY present
 flask==3.0.3
 flask-cors==4.0.0
+langchain==0.2.1
+langchain-groq==0.1.0
+tiktoken==0.6.0
