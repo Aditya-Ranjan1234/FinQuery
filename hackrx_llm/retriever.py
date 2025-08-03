@@ -45,6 +45,22 @@ class Retriever:
             pickle.dump(self.clauses, fp)
 
     # ------------------------------------------------------------------
+    def add_clauses(self, new_clauses: Sequence[Clause]):
+        """Incrementally add *new_clauses* to the index in-memory."""
+
+        if not new_clauses:
+            return
+        texts = [c.text for c in new_clauses]
+        embeddings = self.model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
+        faiss.normalize_L2(embeddings)
+
+        if self.index is None:
+            # Fresh index
+            self.index = faiss.IndexFlatIP(embeddings.shape[1])
+        self.index.add(embeddings)
+        self.clauses.extend(new_clauses)
+
+    # ------------------------------------------------------------------
     def retrieve(self, query: str, top_k: int = 5) -> List[Clause]:
         """Return top-*k* most similar clauses to *query*."""
         assert self.index is not None, "Index not built. Call fit() or load index first."

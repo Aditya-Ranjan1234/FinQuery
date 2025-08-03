@@ -67,3 +67,19 @@ def ingest_dir(dir_path: Path) -> List[Clause]:
             clause_id = f"{file.name}:{idx}"
             clauses.append(Clause(id=clause_id, text=text, source=str(file)))
     return clauses
+
+# -------------------------------------------------------------------------
+# Single-file helper
+# -------------------------------------------------------------------------
+
+def ingest_file(file_path: Path) -> List[Clause]:
+    """Ingest a **single** file and return a list of :class:`Clause`."""
+
+    loader_cls = get_loader_for(file_path)
+    if not loader_cls:
+        raise ValueError(f"Unsupported file type: {file_path.suffix}")
+    clauses: List[Clause] = []
+    for idx, (text, meta) in enumerate(loader_cls(file_path)):
+        clause_id = f"{file_path.name}:{idx}"
+        clauses.append(Clause(id=clause_id, text=text, source=str(file_path)))
+    return clauses

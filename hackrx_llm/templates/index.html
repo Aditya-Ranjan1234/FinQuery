@@ -21,12 +21,47 @@
     <main class="container flex-grow-1">
       <div class="row justify-content-center">
         <div class="col-lg-8">
+          <!-- Upload card -->
+          <div class="card shadow-sm mb-4" id="upload-card">
+            <div class="card-body">
+              <h5 class="card-title">Upload documents</h5>
+              <form id="upload-form" enctype="multipart/form-data">
+                <div class="mb-3">
+                  <input
+                    class="form-control"
+                    type="file"
+                    id="files"
+                    multiple
+                    accept=".pdf,.docx,.eml"
+                  />
+                </div>
+                <button type="submit" class="btn btn-secondary" id="upload-btn">
+                  Upload
+                </button>
+                <div
+                  id="upload-spinner"
+                  class="spinner-border text-secondary d-none ms-2"
+                  role="status"
+                  style="width: 1.5rem; height: 1.5rem"
+                ></div>
+              </form>
+              <div id="upload-msg" class="mt-2 small text-success d-none"></div>
+            </div>
+          </div>
+
+          <!-- Query card -->
           <div class="card shadow-sm">
             <div class="card-body">
               <h5 class="card-title">Ask a question</h5>
               <form id="query-form">
                 <div class="mb-3">
                   <label for="query" class="form-label">Query</label>
+                  <select class="form-select mb-2" id="sample-select">
+                    <option selected value="">– Choose a sample query –</option>
+                    <option value="46-year-old male knee surgery Pune 3-month policy">46M knee surgery Pune</option>
+                    <option value="30F cataract surgery Mumbai 6-month policy">30F cataract Mumbai</option>
+                    <option value="55M angioplasty Delhi 12-month policy">55M angioplasty Delhi</option>
+                  </select>
                   <textarea
                     class="form-control"
                     id="query"

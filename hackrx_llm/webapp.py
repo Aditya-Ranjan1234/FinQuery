@@ -8,6 +8,7 @@ from typing import Dict
 
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
 
 from .decision_engine import evaluate
 from .ingestion import ingest_dir
@@ -21,6 +22,10 @@ from .retriever import Retriever
 DOCS_DIR = Path(os.getenv("DOCS_DIR", "sample_docs")).expanduser().resolve()
 INDEX_PATH = Path(os.getenv("INDEX_PATH", "index/store")).expanduser().with_suffix("")
 TOP_K_DEFAULT = int(os.getenv("TOP_K", "5"))
+
+# Upload directory for user documents
+UPLOAD_DIR = DOCS_DIR / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # App factory
@@ -59,6 +64,32 @@ def create_app() -> Flask:  # noqa: D401
         return app.response_class(
             response=resp.to_json(indent=2), mimetype="application/json"
         )
+
+    @app.post("/api/upload")
+    def api_upload():  # noqa: D401
+        """Receive one or more files via multipart/form-data and add to index."""
+        if "files" not in request.files:
+            return jsonify({"error": "No 'files' field"}), 400
+        files = request.files.getlist("files")
+        uploaded, total_clauses = [], 0
+        for file in files:
+            if not file or file.filename == "":
+                continue
+            filename = secure_filename(file.filename)
+            save_path = UPLOAD_DIR / filename
+            file.save(save_path)
+            try:
+                from .ingestion import ingest_file
+
+                clauses = ingest_file(save_path)
+                retriever.add_clauses(clauses)
+                uploaded.append(filename)
+                total_clauses += len(clauses)
+            except Exception as exc:  # noqa: BLE001
+                return jsonify({"error": str(exc)}), 400
+        # Persist updated index
+        retriever.save(INDEX_PATH)
+        return jsonify({"uploaded": uploaded, "clauses_added": total_clauses})
 
     return app
 
