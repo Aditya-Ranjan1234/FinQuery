@@ -25,6 +25,7 @@ python-multipart
 pydantic
 Werkzeug
 python-dotenv
+typer
 
 # Platform-specific dependencies
 python-magic-bin; sys_platform == 'win32'
