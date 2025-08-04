@@ -3,17 +3,21 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Dict
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-from .decision_engine import evaluate
-from .ingestion import ingest_dir
-from .parser import parse_query
-from .retriever import Retriever
+# Add the parent directory to the path for Vercel
+sys.path.append(str(Path(__file__).parent.parent))
+
+from hackrx_llm.decision_engine import evaluate
+from hackrx_llm.ingestion import ingest_dir
+from hackrx_llm.parser import parse_query
+from hackrx_llm.retriever import Retriever
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -34,12 +38,26 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 def create_app() -> Flask:  # noqa: D401
     """Return a configured :class:`flask.Flask` application."""
 
+    # For Vercel, we need to handle static files differently
+    if os.environ.get('VERCEL'):
+        static_folder = 'hackrx_llm/static'
+        template_folder = 'hackrx_llm/templates'
+    else:
+        static_folder = str(Path(__file__).with_suffix("").parent / "static")
+        template_folder = str(Path(__file__).with_suffix("").parent / "templates")
+
     app = Flask(
         __name__,
-        template_folder=str(Path(__file__).with_suffix("").parent / "templates"),
-        static_folder=str(Path(__file__).with_suffix("").parent / "static"),
+        template_folder=template_folder,
+        static_folder=static_folder,
     )
     CORS(app, resources={r"/api/*": {"origins": "*"}})
+    
+    # Serve static files for Vercel
+    @app.route('/<path:path>', methods=['GET'])
+    def static_proxy(path):
+        if path.startswith('static/'):
+            return send_from_directory(static_folder, path[7:])
 
     retriever = _init_retriever()
 
@@ -120,7 +138,9 @@ def _init_retriever() -> Retriever:
     return retr
 
 
+# Create app instance for Vercel
+app = create_app()
+
 # Stand-alone run -----------------------------------------------------------
 if __name__ == "__main__":  # pragma: no cover
-    app = create_app()
-    app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)), debug=True)
