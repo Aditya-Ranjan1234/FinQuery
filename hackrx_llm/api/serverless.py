@@ -1,68 +1,64 @@
-"""Vercel serverless function handler for HackRx LLM application."""
-import os
-import sys
+from http.server import BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
 import json
-from pathlib import Path
-from werkzeug.wrappers import Response
-from werkzeug.test import create_environ
+import sys
+import os
 
-# Add the project root to the Python path
-project_root = str(Path(__file__).parent.parent.parent)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# Add the parent directory to the path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-try:
-    # Import the Flask app from webapp
-    from hackrx_llm.webapp import create_app
-    
-    # Create the Flask application
-    app = create_app()
-except Exception as e:
-    print(f"Error creating Flask app: {str(e)}")
-    raise
+# Import the Flask app from webapp
+from hackrx_llm.webapp import app as application
 
 # Vercel serverless function handler
 def handler(event, context):
-    """
-    Handle the incoming Vercel request.
+    # Convert Vercel event to WSGI environment
+    environ = {
+        'REQUEST_METHOD': event['httpMethod'],
+        'PATH_INFO': event['path'],
+        'QUERY_STRING': event.get('queryStringParameters', {}),
+        'SERVER_NAME': 'vercel',
+        'SERVER_PORT': '80',
+        'SERVER_PROTOCOL': 'HTTP/1.1',
+        'wsgi.version': (1, 0),
+        'wsgi.url_scheme': 'https',
+        'wsgi.input': event.get('body', ''),
+        'wsgi.errors': sys.stderr,
+        'wsgi.multithread': False,
+        'wsgi.multiprocess': False,
+        'wsgi.run_once': False,
+    }
     
-    Args:
-        event: The incoming request event
-        context: The request context
-        
-    Returns:
-        dict: The response to be returned to the client
-    """
-    try:
-        # Create a test request environment from the event
-        environ = create_environ(
-            path=event.get('path', '/'),
-            method=event.get('httpMethod', 'GET'),
-            headers=dict(event.get('headers', {})),
-            query_string=event.get('queryStringParameters', {}),
-            data=event.get('body', ''),
-            content_type=event.get('headers', {}).get('content-type', 'application/json'),
-        )
-        
-        # Handle the request
-        response = Response.from_app(app, environ)
-        
-        # Convert the response to the format expected by Vercel
-        return {
-            'statusCode': response.status_code,
-            'headers': dict(response.headers),
-            'body': response.get_data(as_text=True)
-        }
-        
-    except Exception as e:
-        print(f"Error handling request: {str(e)}")
-        return {
-            'statusCode': 500,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'error': 'Internal Server Error', 'details': str(e)})
-        }
+    # Add headers
+    if 'headers' in event:
+        for key, value in event['headers'].items():
+            key = key.upper().replace('-', '_')
+            if key not in ('CONTENT_TYPE', 'CONTENT_LENGTH'):
+                key = 'HTTP_' + key
+            environ[key] = value
+    
+    # Handle body
+    if event.get('body'):
+        environ['wsgi.input'] = event['body']
+    if event.get('isBase64Encoded', False):
+        import base64
+        environ['wsgi.input'] = base64.b64decode(environ['wsgi.input'])
+    
+    # Call the Flask app
+    from io import StringIO
+    from werkzeug.wrappers import Response
+    from werkzeug.test import create_environ
+    
+    response = Response.from_app(application, environ)
+    
+    # Convert response to Vercel format
+    return {
+        'statusCode': response.status_code,
+        'headers': dict(response.headers),
+        'body': response.get_data(as_text=True)
+    }
 
 # For local testing
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 3000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    from werkzeug.serving import run_simple
+    run_simple('localhost', 3000, application)
