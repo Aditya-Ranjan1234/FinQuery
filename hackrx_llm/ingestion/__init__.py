@@ -13,9 +13,6 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Tuple, Type
 
 from ..schema import Clause
-from .pdf_loader import PDFLoader  # noqa: F401
-from .word_loader import WordLoader  # noqa: F401
-from .email_loader import EmailLoader  # noqa: F401
 
 
 class BaseLoader:
@@ -67,6 +64,13 @@ def ingest_dir(dir_path: Path) -> List[Clause]:
             clause_id = f"{file.name}:{idx}"
             clauses.append(Clause(id=clause_id, text=text, source=str(file)))
     return clauses
+
+# -------------------------------------------------------------------------
+# Loader module imports (deferred to avoid circular import)
+# -------------------------------------------------------------------------
+from .pdf_loader import PDFLoader  # noqa: F401
+from .word_loader import WordLoader  # noqa: F401
+from .email_loader import EmailLoader  # noqa: F401
 
 # -------------------------------------------------------------------------
 # Single-file helper
