@@ -245,12 +245,12 @@ def _init_retriever() -> Retriever:
             DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
         # Build index from documents
-        app.logger.info(f"Building index from documents in {DOCS_DIR}")
+        current_app.logger.info(f"Building index from documents in {DOCS_DIR}")
         
         try:
             clauses = ingest_dir(DOCS_DIR)
             if not clauses:
-                app.logger.warning(f"No documents found in {DOCS_DIR}")
+                current_app.logger.warning(f"No documents found in {DOCS_DIR}")
                 # Create an empty retriever if no documents found
                 return Retriever()
                 
@@ -262,22 +262,22 @@ def _init_retriever() -> Retriever:
             
             try:
                 retriever.save(INDEX_PATH)
-                app.logger.info(f"Saved index to {INDEX_PATH}.faiss")
+                current_app.logger.info(f"Saved index to {INDEX_PATH}.faiss")
                 return retriever
                 
             except Exception as save_error:
-                app.logger.error(f"Error saving index: {save_error}")
+                current_app.logger.error(f"Error saving index: {save_error}")
                 # Return the in-memory retriever even if save fails
                 return retriever
                 
         except Exception as ingest_error:
-            app.logger.error(f"Error ingesting documents: {ingest_error}")
+            current_app.logger.error(f"Error ingesting documents: {ingest_error}")
             # Return an empty retriever if there's an error
             return Retriever()
             
     except Exception as e:
         error_msg = f"Failed to initialize retriever: {str(e)}"
-        app.logger.error(error_msg, exc_info=True)
+        current_app.logger.error(error_msg, exc_info=True)
         raise RuntimeError(error_msg) from e
 
 
