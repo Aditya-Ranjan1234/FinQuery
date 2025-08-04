@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*$py.class
 
 # Virtual environments
 .venv/
@@ -26,6 +27,23 @@ coverage.xml
 
 # Jupyter / IPython
 .ipynb_checkpoints/
+
+# Vercel
+.vercel/
+
+# Environment variables
+.env
+.env.local
+
+# Local development
+*.local
+
+# Project specific
+backend_index/
+documents/
+sample_docs/
+*.pkl
+*.faiss
 
 # IDEs
 .vscode/

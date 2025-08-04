@@ -1,0 +1,38 @@
+# Core dependencies
+flask==2.3.3
+flask-cors==4.0.0
+Werkzeug==2.3.7
+gunicorn==21.2.0
+
+# Data processing
+numpy>=1.20.0
+pandas>=1.3.0
+
+# Document processing
+PyPDF2==3.0.1
+python-docx==0.8.11
+python-magic-bin==0.4.14; sys_platform == 'win32'
+python-magic==0.4.27; sys_platform != 'win32'
+
+# Vector database and embeddings
+faiss-cpu==1.7.4
+sentence-transformers==2.2.2
+
+# LLM and NLP
+openai>=1.0.0
+tiktoken>=0.4.0
+langchain>=0.0.200
+langchain-groq>=0.1.0
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+typer>=0.9.0
+rich>=13.0.0
+
+# Development tools (needed for building)
+setuptools>=65.5.0
+wheel>=0.38.0
+
+# Vercel specific
+vercel==28.4.12

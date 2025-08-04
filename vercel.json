@@ -15,19 +15,39 @@
     }
   ],
   "routes": [
+    // Serve static files
     {
       "src": "/static/(.*)",
       "dest": "/hackrx_llm/static/$1"
     },
+    // API routes
+    {
+      "src": "/api/(.*)",
+      "dest": "/hackrx_llm/api/serverless.py"
+    },
+    // Frontend routes (SPA support)
     {
       "src": "/(.*)",
-      "dest": "hackrx_llm/api/serverless.py"
+      "dest": "/hackrx_llm/api/serverless.py"
     }
   ],
-  "buildCommand": "npm run build",
+  "buildCommand": "pip install -r requirements-vercel.txt && python -m pip install --upgrade pip && npm install",
   "outputDirectory": "public",
   "regions": ["iad1"],
   "env": {
-    "PYTHONPATH": "/var/task"
-  }
+    "PYTHONPATH": "/var/task",
+    "VERCEL": "1",
+    "FLASK_ENV": "production",
+    "FLASK_APP": "hackrx_llm.webapp:create_app()"
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "hackrx_llm/api/serverless.py"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "hackrx_llm/api/serverless.py"
+    }
+  ]
 }

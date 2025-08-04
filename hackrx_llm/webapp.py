@@ -5,14 +5,19 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional, Tuple, Any
 
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask import Flask, Response, jsonify, render_template, request, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 # Add the parent directory to the path for Vercel
-sys.path.append(str(Path(__file__).parent.parent))
+project_root = str(Path(__file__).parent.parent)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Check if running on Vercel
+IS_VERCEL = os.environ.get('VERCEL') == '1'
 
 from hackrx_llm.decision_engine import evaluate
 from hackrx_llm.ingestion import ingest_dir
@@ -23,8 +28,22 @@ from hackrx_llm.retriever import Retriever
 # Configuration
 # ---------------------------------------------------------------------------
 
-DOCS_DIR = Path(os.getenv("DOCS_DIR", "documents")).expanduser().resolve()
-INDEX_PATH = Path(os.getenv("INDEX_PATH", "backend_index/store")).expanduser().with_suffix("")
+# Handle paths differently for Vercel vs local
+if IS_VERCEL:
+    # For Vercel, use /tmp for writable directories
+    BASE_DIR = Path('/tmp')
+    DOCS_DIR = BASE_DIR / 'documents'
+    INDEX_PATH = BASE_DIR / 'backend_index' / 'store'
+    
+    # Create directories if they don't exist
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
+    INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
+else:
+    # Local development paths
+    BASE_DIR = Path(__file__).parent.parent
+    DOCS_DIR = Path(os.getenv("DOCS_DIR", str(BASE_DIR / "documents"))).resolve()
+    INDEX_PATH = Path(os.getenv("INDEX_PATH", str(BASE_DIR / "backend_index" / "store"))).with_suffix("")
+
 TOP_K_DEFAULT = int(os.getenv("TOP_K", "5"))
 
 # Upload directory for user documents
@@ -37,79 +56,158 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 def create_app() -> Flask:  # noqa: D401
     """Return a configured :class:`flask.Flask` application."""
-
-    # For Vercel, we need to handle static files differently
-    if os.environ.get('VERCEL'):
-        static_folder = 'hackrx_llm/static'
-        template_folder = 'hackrx_llm/templates'
-    else:
-        static_folder = str(Path(__file__).with_suffix("").parent / "static")
-        template_folder = str(Path(__file__).with_suffix("").parent / "templates")
+    # Configure paths based on environment
+    static_folder = str(Path(__file__).parent / 'static')
+    template_folder = str(Path(__file__).parent / 'templates')
 
     app = Flask(
         __name__,
-        template_folder=template_folder,
         static_folder=static_folder,
+        template_folder=template_folder,
     )
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
     
-    # Serve static files for Vercel
-    @app.route('/<path:path>', methods=['GET'])
-    def static_proxy(path):
-        if path.startswith('static/'):
-            return send_from_directory(static_folder, path[7:])
+    # Configure CORS
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": ["*"],
+            "methods": ["GET", "POST", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"]
+        }
+    })
+    
+    # Handle preflight requests
+    @app.after_request
+    def after_request(response: Response) -> Response:
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+    
+    # Serve static files
+    @app.route('/static/<path:path>')
+    def serve_static(path: str) -> Response:
+        return send_from_directory(static_folder, path)
+    
+    # Serve index.html for all other routes (SPA support)
+    @app.route('/')
+    @app.route('/<path:path>')
+    def serve_app(path: str = '') -> Response:
+        if path.startswith('api/') or path.startswith('static/'):
+            return '', 404
+        return send_from_directory(template_folder, 'index.html')
 
     retriever = _init_retriever()
 
     # ------------------------------------------------------------------
     # Routes
     # ------------------------------------------------------------------
-    @app.route("/")
-    def index():  # noqa: D401
-        return render_template("index.html")
+    @app.route("/api/ask", methods=['POST', 'OPTIONS'])
+    def api_ask() -> Tuple[Response, int]:
+        """Handle question-answering requests."""
+        if request.method == 'OPTIONS':
+            return jsonify({}), 200
+            
+        try:
+            data: Dict = request.get_json(force=True)
+            if not data or 'query' not in data:
+                return jsonify({"error": "Missing 'query' field"}), 400
+                
+            query_text: str = data.get("query", "").strip()
+            if not query_text:
+                return jsonify({"error": "Query cannot be empty"}), 400
 
-    @app.post("/api/ask")
-    def api_ask():  # noqa: D401
-        data: Dict = request.get_json(force=True)
-        query_text: str = data.get("query", "").strip()
-        if not query_text:
-            return jsonify({"error": "Missing 'query' field"}), 400
+            top_k = min(int(data.get("top_k", TOP_K_DEFAULT)), 20)  # Limit top_k to 20
+            
+            try:
+                q_struct = parse_query(query_text)
+                clauses = retriever.retrieve(query_text, top_k=top_k)
+                resp = evaluate(q_struct, clauses)
+                
+                return app.response_class(
+                    response=json.dumps(resp.model_dump(), indent=2, ensure_ascii=False),
+                    mimetype="application/json"
+                )
+                
+            except Exception as e:
+                app.logger.error(f"Error processing query: {str(e)}", exc_info=True)
+                return jsonify({
+                    "error": "Error processing query",
+                    "details": str(e)
+                }), 500
+                
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid JSON payload"}), 400
+        except Exception as e:
+            app.logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+            return jsonify({"error": "Internal server error"}), 500
 
-        top_k = int(data.get("top_k", TOP_K_DEFAULT))
-        q_struct = parse_query(query_text)
-        clauses = retriever.retrieve(query_text, top_k=top_k)
-        resp = evaluate(q_struct, clauses)
-        import json
-        return app.response_class(
-            response=json.dumps(resp.model_dump(), indent=2, ensure_ascii=False),
-            mimetype="application/json"
-        )
-
-    @app.post("/api/upload")
-    def api_upload():  # noqa: D401
+    @app.route("/api/upload", methods=['POST', 'OPTIONS'])
+    def api_upload() -> Tuple[Response, int]:
         """Receive one or more files via multipart/form-data and add to index."""
+        if request.method == 'OPTIONS':
+            return jsonify({}), 200
+            
         if "files" not in request.files:
             return jsonify({"error": "No 'files' field"}), 400
+            
         files = request.files.getlist("files")
-        uploaded, total_clauses = [], 0
+        if not files or all(file.filename == '' for file in files):
+            return jsonify({"error": "No selected files"}), 400
+            
+        uploaded, total_clauses, errors = [], 0, []
+        
         for file in files:
             if not file or file.filename == "":
                 continue
-            filename = secure_filename(file.filename)
-            save_path = UPLOAD_DIR / filename
-            file.save(save_path)
+                
             try:
-                from .ingestion import ingest_file
-
-                clauses = ingest_file(save_path)
-                retriever.add_clauses(clauses)
-                uploaded.append(filename)
-                total_clauses += len(clauses)
-            except Exception as exc:  # noqa: BLE001
-                return jsonify({"error": str(exc)}), 400
-        # Persist updated index
-        retriever.save(INDEX_PATH)
-        return jsonify({"uploaded": uploaded, "clauses_added": total_clauses})
+                filename = secure_filename(file.filename)
+                if not filename:
+                    errors.append(f"Invalid filename: {file.filename}")
+                    continue
+                    
+                save_path = UPLOAD_DIR / filename
+                
+                # Save the file
+                file.save(save_path)
+                
+                try:
+                    from hackrx_llm.ingestion import ingest_file
+                    
+                    # Process the file
+                    clauses = ingest_file(save_path)
+                    retriever.add_clauses(clauses)
+                    uploaded.append(filename)
+                    total_clauses += len(clauses)
+                    
+                except Exception as e:
+                    errors.append(f"Error processing {filename}: {str(e)}")
+                    # Clean up the saved file if there was an error
+                    if save_path.exists():
+                        save_path.unlink()
+                    
+            except Exception as e:
+                errors.append(f"Error handling {getattr(file, 'filename', 'unknown')}: {str(e)}")
+                continue
+        
+        # Save the updated index if we processed any files
+        if uploaded:
+            try:
+                retriever.save(INDEX_PATH)
+            except Exception as e:
+                errors.append(f"Error saving index: {str(e)}")
+        
+        response = {
+            "uploaded": uploaded,
+            "clauses_added": total_clauses,
+            "success": len(uploaded) > 0 and not errors
+        }
+        
+        if errors:
+            response["errors"] = errors
+            
+        status_code = 200 if response["success"] else 400
+        return jsonify(response), status_code
 
     return app
 
@@ -120,22 +218,67 @@ def create_app() -> Flask:  # noqa: D401
 
 
 def _init_retriever() -> Retriever:
-    """Load existing index or build from docs."""
+    """
+    Load existing index or build from documents.
+    
+    Returns:
+        Retriever: An initialized Retriever instance
+        
+    Raises:
+        RuntimeError: If there's an error initializing the retriever
+    """
+    try:
+        # Check if index exists and load it
+        index_file = INDEX_PATH.with_suffix(".faiss")
+        if index_file.exists():
+            try:
+                app.logger.info(f"Loading existing index from {index_file}")
+                return Retriever(index_path=INDEX_PATH)
+            except Exception as e:
+                app.logger.error(f"Error loading existing index: {e}")
+                # Continue to rebuild the index if loading fails
+                pass
 
-    if INDEX_PATH.with_suffix(".faiss").exists():
-        return Retriever(index_path=INDEX_PATH)
+        # Ensure documents directory exists
+        if not DOCS_DIR.exists():
+            app.logger.info(f"Creating documents directory at {DOCS_DIR}")
+            DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
-    if not DOCS_DIR.exists():
-        DOCS_DIR.mkdir(parents=True, exist_ok=True)
-
-    print(f"[INFO] Building index from docs in {DOCS_DIR} …")
-    clauses = ingest_dir(DOCS_DIR)
-    retr = Retriever()
-    retr.fit(clauses)
-    INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
-    retr.save(INDEX_PATH)
-    print(f"[INFO] Saved index to {INDEX_PATH}.faiss")
-    return retr
+        # Build index from documents
+        app.logger.info(f"Building index from documents in {DOCS_DIR}")
+        
+        try:
+            clauses = ingest_dir(DOCS_DIR)
+            if not clauses:
+                app.logger.warning(f"No documents found in {DOCS_DIR}")
+                # Create an empty retriever if no documents found
+                return Retriever()
+                
+            retriever = Retriever()
+            retriever.fit(clauses)
+            
+            # Ensure index directory exists
+            INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
+            
+            try:
+                retriever.save(INDEX_PATH)
+                app.logger.info(f"Saved index to {INDEX_PATH}.faiss")
+                return retriever
+                
+            except Exception as save_error:
+                app.logger.error(f"Error saving index: {save_error}")
+                # Return the in-memory retriever even if save fails
+                return retriever
+                
+        except Exception as ingest_error:
+            app.logger.error(f"Error ingesting documents: {ingest_error}")
+            # Return an empty retriever if there's an error
+            return Retriever()
+            
+    except Exception as e:
+        error_msg = f"Failed to initialize retriever: {str(e)}"
+        app.logger.error(error_msg, exc_info=True)
+        raise RuntimeError(error_msg) from e
 
 
 # Create app instance for Vercel
