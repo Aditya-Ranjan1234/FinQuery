@@ -1,0 +1,20 @@
+{
+  "name": "finquery",
+  "version": "1.0.0",
+  "description": "FinQuery - Insurance Claim Processing System",
+  "main": "vercel-build.js",
+  "scripts": {
+    "build": "node vercel-build.js",
+    "start": "python -m hackrx_llm.webapp"
+  },
+  "keywords": ["insurance", "claim", "processing", "flask", "python"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.x"
+  },
+  "dependencies": {
+    "child_process": "^1.0.2",
+    "fs-extra": "^10.0.0"
+  }
+}
