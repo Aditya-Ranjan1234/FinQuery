@@ -15,6 +15,14 @@ venv.bak/
 .installed.cfg
 *.egg
 *.log
+*.pyc
+*.pyd
+*.pyo
+*.pth
+*.pyz
+*.pyw
+.pytest_cache/
+.mypy_cache/
 
 # VSCode
 .vscode/
@@ -28,6 +36,55 @@ venv.bak/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Test and development
+*.sqlite3
+*.sql
+*.sqlite
+*.db
+*.bak
+*.swp
+*~
+
+# Large files and directories
+documents/
+sample_docs/
+backend_index/
+*.pdf
+*.docx
+*.doc
+*.xls
+*.xlsx
+*.csv
+*.jsonl
+*.h5
+*.pkl
+*.pth
+*.bin
+*.pt
+*.onnx
+*.tflite
+*.hdf5
+*.zip
+*.tar.gz
+*.tar
+*.7z
+*.rar
+
+# Node modules
+node_modules/
+
+# Build outputs
+build/
+dist/
+*.min.js
+*.min.css
+
+# Local development
+.local/
+.cache/
+.coverage
+htmlcov/
 
 # Project specific
 backend_index/

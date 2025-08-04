@@ -3,7 +3,15 @@
   "builds": [
     {
       "src": "hackrx_llm/api/serverless.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15mb",
+        "includeFiles": [
+          "hackrx_llm/**/*.py",
+          "hackrx_llm/templates/**",
+          "hackrx_llm/static/**"
+        ]
+      }
     },
     {
       "src": "hackrx_llm/static/*",
@@ -19,5 +27,11 @@
       "src": "/(.*)",
       "dest": "hackrx_llm/api/serverless.py"
     }
-  ]
+  ],
+  "functions": {
+    "hackrx_llm/api/serverless.py": {
+      "memory": 3008,
+      "maxDuration": 60
+    }
+  }
 }
