@@ -19,8 +19,8 @@ from .retriever import Retriever
 # Configuration
 # ---------------------------------------------------------------------------
 
-DOCS_DIR = Path(os.getenv("DOCS_DIR", "sample_docs")).expanduser().resolve()
-INDEX_PATH = Path(os.getenv("INDEX_PATH", "index/store")).expanduser().with_suffix("")
+DOCS_DIR = Path(os.getenv("DOCS_DIR", "documents")).expanduser().resolve()
+INDEX_PATH = Path(os.getenv("INDEX_PATH", "backend_index/store")).expanduser().with_suffix("")
 TOP_K_DEFAULT = int(os.getenv("TOP_K", "5"))
 
 # Upload directory for user documents
@@ -61,8 +61,10 @@ def create_app() -> Flask:  # noqa: D401
         q_struct = parse_query(query_text)
         clauses = retriever.retrieve(query_text, top_k=top_k)
         resp = evaluate(q_struct, clauses)
+        import json
         return app.response_class(
-            response=resp.to_json(indent=2), mimetype="application/json"
+            response=json.dumps(resp.model_dump(), indent=2, ensure_ascii=False),
+            mimetype="application/json"
         )
 
     @app.post("/api/upload")

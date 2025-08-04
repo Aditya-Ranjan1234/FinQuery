@@ -24,7 +24,8 @@ class Retriever:
         self.clauses: List[Clause] = []
         self.index: faiss.IndexFlatIP | None = None
         self.index_path = Path(index_path) if index_path else None
-        if self.index_path and self.index_path.exists():
+        # Load existing index if associated *.faiss file is present (prefix itself may not exist)
+        if self.index_path and self.index_path.with_suffix(".faiss").exists():
             self._load_index(self.index_path)
 
     # ------------------------------------------------------------------

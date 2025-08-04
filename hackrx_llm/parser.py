@@ -47,7 +47,11 @@ def parse_query(text: str) -> Query:  # noqa: D401
     # Other fields
     for key, regex in _REGEXES.items():
         if m := regex.search(text):
-            val = m.group(1)
+            # Use first capture group if present, otherwise entire match
+            if m.lastindex:
+                val = m.group(1)
+            else:
+                val = m.group(0)
             if key in {"age", "policy_age_months"}:
                 val = int(val)
             data[key] = val

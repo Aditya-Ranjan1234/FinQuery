@@ -48,6 +48,6 @@ class DecisionResponse(BaseModel):
     justification: str = Field(..., description="Human-readable explanation of the decision.")
     clauses: List[Clause] = Field(..., description="Clauses used for justification.")
 
-    def to_json(self, **kwargs):  # pragma: no cover
+    def to_json(self):  # pragma: no cover
         """Wrapper to serialise as JSON string with UTF-8 characters preserved."""
-        return self.json(ensure_ascii=False, **kwargs)
+        return self.model_dump_json(ensure_ascii=False)
