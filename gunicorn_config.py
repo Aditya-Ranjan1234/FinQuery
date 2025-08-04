@@ -2,7 +2,9 @@
 import multiprocessing
 
 # Server socket
-bind = '0.0.0.0:10000'
+import os
+port = int(os.environ.get('PORT', 10000))
+bind = f'0.0.0.0:{port}'
 
 # Worker processes
 workers = 2  # Adjust based on your Render instance's CPU
