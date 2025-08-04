@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: finquery
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "hackrx_llm.webapp:create_app()"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+    plan: free
+    numInstances: 1
+    healthCheckPath: /
+    autoDeploy: true
+
+  # Uncomment and configure if you need a database
+  # - type: postgres
+  #   name: finquery-db
+  #   plan: free
+  #   diskSize: 1GB

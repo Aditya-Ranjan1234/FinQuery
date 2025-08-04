@@ -1,17 +1,18 @@
-sentence-transformers
-faiss-cpu
-pdfplumber
-python-docx
-python-magic
-pydantic
-typer
-rich
-pytest
-black
-ruff
-openai
-flask
-flask-cors
-langchain
-langchain-groq
-tiktoken
+flask==2.3.3
+flask-cors==4.0.0
+gunicorn==21.2.0
+sentence-transformers==2.2.2
+faiss-cpu==1.7.4
+pypdf2==3.0.1
+python-docx==0.8.11
+pydantic>=2.0.0,<3.0.0
+python-multipart==0.0.6
+Werkzeug==2.3.7
+numpy==1.24.3
+openai>=1.0.0,<2.0.0
+tiktoken==0.5.1
+langchain==0.0.340
+langchain-groq==0.1.0
+python-dotenv==1.0.0
+python-magic-bin==0.4.14; sys_platform == 'win32'
+python-magic==0.4.27; sys_platform != 'win32'
