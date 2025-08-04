@@ -4,20 +4,62 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
+
+# Virtual Environments
 venv/
 ENV/
 .env
 .venv
 env.bak/
 venv.bak/
+
+# Distribution / packaging
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Logs and databases
 *.log
+*.sqlite
+
+# Byte-compiled / optimized / DLL files
 *.pyc
 *.pyd
 *.pyo
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Local development
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+documents/
+backend_index/
+*.faiss
+*.pkl
+*.bin
+
+# Large model files (if any)
+*.pt
+*.pth
+*.h5
+*.onnx
+*.safetensors
 *.pth
 *.pyz
 *.pyw

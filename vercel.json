@@ -2,19 +2,15 @@
   "version": 2,
   "builds": [
     {
-      "src": "hackrx_llm/api/serverless.py",
+      "src": "hackrx_llm/webapp.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "15mb",
-        "includeFiles": [
-          "hackrx_llm/**/*.py",
-          "hackrx_llm/templates/**",
-          "hackrx_llm/static/**"
-        ]
+        "maxLambdaSize": "50mb",
+        "runtime": "python3.10"
       }
     },
     {
-      "src": "hackrx_llm/static/*",
+      "src": "hackrx_llm/static/**",
       "use": "@vercel/static"
     }
   ],
