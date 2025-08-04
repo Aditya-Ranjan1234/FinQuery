@@ -2,7 +2,7 @@ sentence-transformers
 faiss-cpu
 pdfplumber
 python-docx
-python-magic-bin
+python-magic
 pydantic
 typer
 rich
