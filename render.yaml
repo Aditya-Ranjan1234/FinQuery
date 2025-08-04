@@ -2,11 +2,13 @@ services:
   - type: web
     name: finquery
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "hackrx_llm.webapp:create_app()"
+    buildCommand: |
+      pip install --upgrade pip setuptools wheel
+      pip install -r requirements.txt
+    startCommand: gunicorn --worker-tmp-dir /dev/shm --config gunicorn_config.py "hackrx_llm.webapp:create_app()"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10.0
+        value: 3.10.13
     plan: free
     numInstances: 1
     healthCheckPath: /
