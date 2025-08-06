@@ -1,4 +1,5 @@
 services:
+  # Main web application
   - type: web
     name: finquery
     env: python
@@ -11,13 +12,33 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.13
+      - key: GROQ_API_KEY
+        sync: false  # Will be set in Render dashboard
+      - key: API_AUTH_TOKEN
+        sync: false  # Will be set in Render dashboard
     plan: free
     numInstances: 1
     healthCheckPath: /
     autoDeploy: true
 
-  # Uncomment and configure if you need a database
-  # - type: postgres
-  #   name: finquery-db
-  #   plan: free
-  #   diskSize: 1GB
+  # Webhook service
+  - type: web
+    name: finquery-webhook
+    env: python
+    python:
+      version: 3.10.13
+    buildCommand: |
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: python -m hackrx_llm.webhook
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.13
+      - key: GROQ_API_KEY
+        sync: false  # Will be set in Render dashboard
+      - key: API_AUTH_TOKEN
+        sync: false  # Will be set in Render dashboard
+    plan: free
+    numInstances: 1
+    healthCheckPath: /health
+    autoDeploy: true
