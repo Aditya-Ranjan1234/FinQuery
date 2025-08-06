@@ -196,9 +196,53 @@ def health_check():
     return jsonify({"status": "healthy", "model": LLM_MODEL}), 200
 
 
-if __name__ == "__main__":
-    # Initialize components
-    initialize_components()
+# Vercel serverless handler
+def vercel_handler(event, context):
+    """Handle Vercel serverless requests."""
+    from flask import Request
     
-    # Run the Flask app
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8080)), debug=os.getenv("FLASK_DEBUG", "false").lower() == "true")
+    # Convert Vercel event to Flask request
+    with app.test_request_context(
+        path=event['path'],
+        method=event['httpMethod'],
+        headers=event.get('headers', {}),
+        data=event.get('body', '')
+    ):
+        # Initialize components if not already done
+        global retriever, llm
+        if retriever is None or llm is None:
+            initialize_components()
+            
+        response = app.full_dispatch_request()
+        return {
+            'statusCode': response.status_code,
+            'body': response.get_data(as_text=True),
+            'headers': dict(response.headers)
+        }
+
+# For local development
+if __name__ == "__main__":
+    import sys
+    
+    if '--serverless' in sys.argv:
+        # Running in serverless mode
+        from flask import request
+        import json
+        
+        @app.route('/', defaults={'path': ''}, methods=['GET', 'POST'])
+        @app.route('/<path:path>', methods=['GET', 'POST'])
+        def catch_all(path):
+            return jsonify(vercel_handler({
+                'httpMethod': request.method,
+                'path': '/' + path,
+                'headers': dict(request.headers),
+                'body': request.get_data(as_text=True) if request.data else None
+            }, None))
+            
+        port = int(os.getenv('PORT', 3000))
+        app.run(host='0.0.0.0', port=port, debug=os.getenv("FLASK_DEBUG", "false").lower() == "true")
+    else:
+        # Original local development
+        initialize_components()
+        app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8080)), 
+               debug=os.getenv("FLASK_DEBUG", "false").lower() == "true")

@@ -5,17 +5,24 @@ This webhook provides an API endpoint for processing document queries using a Re
 ## Prerequisites
 
 1. Python 3.10+
-2. Required Python packages (install via `pip install -r requirements.txt`)
-3. Groq API key (set as environment variable `GROQ_API_KEY`)
-4. API authentication token (set as environment variable `API_AUTH_TOKEN`)
+2. Node.js 16+ (for Vercel deployment)
+3. Vercel CLI (`npm install -g vercel`)
+4. Groq API key (set as environment variable `GROQ_API_KEY`)
+5. API authentication token (set as environment variable `API_AUTH_TOKEN`)
 
 ## Environment Variables
 
 Create a `.env` file in the project root with the following variables:
 
 ```
+# Required for local development
 GROQ_API_KEY=your_groq_api_key_here
 API_AUTH_TOKEN=your_secure_auth_token_here
+FLASK_DEBUG=true
+
+# For Vercel deployment (set these in Vercel dashboard)
+VERCEL=1
+PYTHONUNBUFFERED=1
 ```
 
 ## Installation
@@ -67,57 +74,117 @@ Process a document and answer questions about it.
 }
 ```
 
-## Deployment
-
-### Local Development
+## Local Development
 
 1. Clone the repository
-2. Install dependencies:
+2. Install Python dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-3. Create a `.env` file with your credentials:
-   ```
-   GROQ_API_KEY=your_groq_api_key_here
-   API_AUTH_TOKEN=your_secure_auth_token_here
-   FLASK_DEBUG=true
-   ```
-4. Run the webhook:
+3. Install Node.js dependencies (for Vercel):
    ```bash
-   python -m hackrx_llm.webhook
+   npm install @vercel/node
+   ```
+4. Create a `.env` file with your credentials (see Environment Variables section)
+5. Run the webhook locally:
+   ```bash
+   # For development with hot-reload
+   python -m hackrx_llm.webhook --serverless
+   
+   # Or for production-like environment
+   FLASK_DEBUG=false python -m hackrx_llm.webhook --serverless
    ```
 
-### Deployment to Render.com
+## Vercel Deployment
+
+### Prerequisites
+1. Install Vercel CLI:
+   ```bash
+   npm install -g vercel
+   ```
+2. Login to Vercel:
+   ```bash
+   vercel login
+   ```
+
+### Deployment Steps
+
+1. **Link your project** (first time only):
+   ```bash
+   cd /path/to/your/project
+   vercel link
+   ```
+
+2. **Set environment variables**:
+   ```bash
+   vercel env add GROQ_API_KEY production
+   vercel env add API_AUTH_TOKEN production
+   vercel env add PYTHON_VERSION production  # Set to 3.10.13
+   ```
+
+3. **Deploy to production**:
+   ```bash
+   vercel --prod
+   ```
+
+4. **For subsequent deployments**, just push to your connected Git repository or run:
+   ```bash
+   vercel --prod
+   ```
+
+### Manual Deployment via GitHub
 
 1. Push your code to a GitHub repository
-2. Go to [Render Dashboard](https://dashboard.render.com/)
-3. Click "New" and select "Web Service"
-4. Connect your GitHub repository
-5. Configure the service:
-   - Name: `finquery-webhook`
-   - Region: Choose the closest to your users
-   - Branch: `main` (or your preferred branch)
-   - Runtime: Python 3
+2. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+3. Click "Add New" > "Project"
+4. Import your GitHub repository
+5. Configure project settings:
+   - Framework Preset: "Other"
    - Build Command: `pip install -r requirements.txt`
-   - Start Command: `python -m hackrx_llm.webhook`
-6. Add environment variables:
-   - `PYTHON_VERSION`: 3.10.13
+   - Output Directory: `public` (for static files)
+   - Install Command: (leave blank)
+6. Add environment variables in the Vercel dashboard:
    - `GROQ_API_KEY`: Your Groq API key
-   - `API_AUTH_TOKEN`: A secure token for API authentication
-   - `FLASK_DEBUG`: false
-7. Click "Create Web Service"
+   - `API_AUTH_TOKEN`: Your secure token
+   - `PYTHON_VERSION`: 3.10.13
+   - `VERCEL`: 1
+   - `PYTHONUNBUFFERED`: 1
+7. Click "Deploy"
 
-### Testing the Deployment
+## Testing the Webhook
 
-Once deployed, you can test the webhook with:
+### Local Testing
 
 ```bash
-curl -X POST https://your-render-app.onrender.com/hackrx/run \
+# Health check
+curl http://localhost:3000/api/webhook/health
+
+# Test query
+curl -X POST http://localhost:3000/api/webhook/run \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your_auth_token" \
   -d '{
     "documents": "https://example.com/your-policy.pdf",
-    "questions": ["What is the grace period?", "What is covered?"],
+    "questions": ["What is the grace period?"],
+    "model": "llama-3.3-70b-versatile"
+  }'
+```
+
+### Production Testing
+
+Replace `your-vercel-app.vercel.app` with your actual Vercel deployment URL:
+
+```bash
+# Health check
+curl https://your-vercel-app.vercel.app/api/webhook/health
+
+# Test query
+curl -X POST https://your-vercel-app.vercel.app/api/webhook/run \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your_auth_token" \
+  -d '{
+    "documents": "https://example.com/your-policy.pdf",
+    "questions": ["What is the grace period?"],
     "model": "llama-3.3-70b-versatile"
   }'
 ```

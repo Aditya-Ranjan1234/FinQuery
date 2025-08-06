@@ -10,11 +10,23 @@
       }
     },
     {
+      "src": "api/index.js",
+      "use": "@vercel/node",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
+    },
+    {
       "src": "hackrx_llm/static/**",
       "use": "@vercel/static"
     }
   ],
   "routes": [
+    {
+      "src": "/api/webhook",
+      "dest": "/api/index.js",
+      "methods": ["GET", "POST", "OPTIONS"]
+    },
     {
       "src": "/static/(.*)",
       "dest": "/hackrx_llm/static/$1"
