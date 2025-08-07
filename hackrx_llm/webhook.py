@@ -38,7 +38,7 @@ UPLOAD_DIR = DOCS_DIR / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # LLM Configuration
-LLM_MODEL = "llama-3.3-70b-versatile"
+LLM_MODEL = "moonshotai/kimi-k2-instruct"
 
 # Initialize components
 retriever = None
